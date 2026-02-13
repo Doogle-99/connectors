@@ -252,16 +252,22 @@ class ReportModel(BaseModel):
         None, description="Motivations behind the threat actor's behavior."
     )
     source_regions_hierarchy: list[SourceRegion] | None = Field(
-        None, description="Regions/countries of threat origin."
+        None,
+        description="Regions/countries of report origin.",
+        alias="source_regions",
     )
     tags_details: list[TagDetail] | None = Field(
         None, description="Tags applied to the report, with context."
     )
     targeted_industries_tree: list[TargetedIndustry] | None = Field(
-        None, description="Industries targeted by the threat."
+        None,
+        description="Industries targeted by the report.",
+        alias="targeted_industries",
     )
     targeted_regions_hierarchy: list[TargetedRegion] | None = Field(
-        None, description="Regions/countries targeted by the threat."
+        None,
+        description="Regions/countries targeted by the report.",
+        alias="targeted_regions",
     )
     technologies: list[Technology] | None = Field(
         None, description="Technologies and vendors affected by vulnerabilities."

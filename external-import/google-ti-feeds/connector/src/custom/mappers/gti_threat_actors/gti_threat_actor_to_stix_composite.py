@@ -1,5 +1,4 @@
-"""Composite mapper that handles threat actor to country locations, identity, intrusion set, and relationships conversion in one step."""
-
+import re
 from datetime import datetime, timezone
 from typing import Any
 
@@ -15,7 +14,10 @@ from connector.src.custom.mappers.gti_threat_actors.gti_threat_actor_to_stix_loc
     LocationWithTiming,
 )
 from connector.src.custom.models.gti.gti_threat_actor_model import GTIThreatActorData
+from connector.src.stix.octi.models.attack_pattern_model import OctiAttackPatternModel
+from connector.src.stix.octi.models.malware_model import OctiMalwareModel
 from connector.src.stix.octi.models.relationship_model import OctiRelationshipModel
+from connector.src.stix.v21.models.ovs.malware_type_ov_enums import MalwareTypeOV
 from connector.src.utils.converters.generic_converter_config import BaseMapper
 from connectors_sdk.models.octi import (  # type: ignore[import-untyped]
     OrganizationAuthor,
@@ -48,7 +50,7 @@ class GTIThreatActorToSTIXComposite(BaseMapper):
         self.enable_threat_actor_aliases = enable_threat_actor_aliases
 
     def to_stix(self) -> list[Any]:
-        """Convert the GTI threat actor to a list of STIX objects (country locations, sectors, intrusion set, relationships).
+        """Convert the GTI threat actor to a list of STIX objects (country locations, sectors, intrusion_set, relationships).
 
         Returns:
             list of STIX objects in order: [country_locations..., sectors..., intrusion_set, relationships...]
@@ -174,8 +176,111 @@ class GTIThreatActorToSTIXComposite(BaseMapper):
                 description=f"Threat actor '{attributes.name}' targets sector '{sector.name}'",
             )
             relationships.append(relationship)
+        
+        # Create relationships between threat actor and Attack Patterns (TTPs)
+        # Threat Actor might use tags too?
+        # Checking gti_threat_actor_model.py... it has 'tags'.
+        if attributes.tags:
+            ttp_objects = self._create_uses_attack_pattern_relationships(
+                intrusion_set, attributes.tags, created, modified
+            )
+            relationships.extend(ttp_objects)
+            
+        # Malware check
+        if (
+            attributes.aggregations
+            and attributes.aggregations.files
+            and attributes.aggregations.files.suggested_threat_label
+        ):
+            malware_labels = attributes.aggregations.files.suggested_threat_label
+            if isinstance(malware_labels, str):
+                malware_labels = [malware_labels]
+                
+            malware_objects = self._create_uses_malware_relationships(
+                intrusion_set, malware_labels, created, modified
+            )
+            relationships.extend(malware_objects)
 
         return relationships
+
+    def _create_uses_attack_pattern_relationships(
+        self,
+        source_entity: Any,
+        tags: list[str],
+        created: datetime,
+        modified: datetime,
+    ) -> list[Any]:
+        """Create Attack Patterns from tags and link them to the entity."""
+        entities: list[Any] = []
+        mitre_pattern = re.compile(r"T\d{4}(?:\.\d{3})?")
+
+        for tag in tags:
+            match = mitre_pattern.fullmatch(tag)
+            if match:
+                mitre_id = match.group(0)
+                attack_pattern = OctiAttackPatternModel.create(
+                    name=mitre_id,
+                    mitre_id=mitre_id,
+                    organization_id=self.organization.id,
+                    marking_ids=[self.tlp_marking.id],
+                    description=f"Technique {mitre_id} extracted from tags",
+                    created=created,
+                    modified=modified,
+                )
+                entities.append(attack_pattern)
+
+                relationship = OctiRelationshipModel.create(
+                    relationship_type="uses",
+                    source_ref=source_entity.id,
+                    target_ref=attack_pattern.id,
+                    organization_id=self.organization.id,
+                    marking_ids=[self.tlp_marking.id],
+                    created=created,
+                    modified=modified,
+                    description=f"Threat actor uses technique {mitre_id}",
+                )
+                entities.append(relationship)
+        
+        return entities
+
+    def _create_uses_malware_relationships(
+        self,
+        source_entity: Any,
+        malware_names: list[str],
+        created: datetime,
+        modified: datetime,
+    ) -> list[Any]:
+        """Create Malware objects from names and link them to the entity."""
+        entities: list[Any] = []
+        
+        for name in malware_names:
+            msg = f"Malware family {name} extracted from suggested threat label"
+            
+            malware = OctiMalwareModel.create(
+                name=name,
+                organization_id=self.organization.id,
+                marking_ids=[self.tlp_marking.id],
+                malware_types=[MalwareTypeOV.RANSOMWARE if "ransom" in name.lower() else MalwareTypeOV.UNKNOWN],
+                is_family=True,
+                description=msg,
+                created=created,
+                modified=modified,
+            )
+            entities.append(malware)
+
+            relationship = OctiRelationshipModel.create(
+                relationship_type="uses",
+                source_ref=source_entity.id,
+                target_ref=malware.id,
+                organization_id=self.organization.id,
+                marking_ids=[self.tlp_marking.id],
+                created=created,
+                modified=modified,
+                description=f"Threat actor uses malware {name}",
+            )
+            entities.append(relationship)
+            
+        return entities
 
     def _get_targeted_locations_with_timing(
         self, locations_with_timing: list[LocationWithTiming]

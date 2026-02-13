@@ -299,16 +299,22 @@ class ThreatActorModel(BaseModel):
         description="Threat actor's motivations such as espionage, financial gain, etc.",
     )
     source_regions_hierarchy: list[SourceRegion] | None = Field(
-        None, description="Regions/countries of threat actor origin."
+        None,
+        description="Regions/countries of threat actor origin.",
+        alias="source_regions",
     )
     tags_details: list[TagDetail] | None = Field(
         None, description="Tags applied to the threat actor, with context."
     )
     targeted_industries_tree: list[TargetedIndustry] | None = Field(
-        None, description="Industries targeted by the threat actor."
+        None,
+        description="Industries targeted by the threat actor.",
+        alias="targeted_industries",
     )
     targeted_regions_hierarchy: list[TargetedRegion] | None = Field(
-        None, description="Regions/countries targeted by the threat actor."
+        None,
+        description="Regions/countries targeted by the threat actor.",
+        alias="targeted_regions",
     )
 
 

@@ -372,6 +372,7 @@ class CampaignModel(BaseModel):
     source_regions_hierarchy: list[SourceRegion] | None = Field(
         default=None,
         description="Country or region from which the campaign is known to originate",
+        alias="source_regions",
     )
     summary_stats: SummaryStats | None = Field(
         default=None, description="Stats associated with the campaign"
@@ -386,10 +387,12 @@ class CampaignModel(BaseModel):
     targeted_industries_tree: list[TargetedIndustry] | None = Field(
         default=None,
         description="Industries and industry groups known to be targeted by the campaign",
+        alias="targeted_industries",
     )
     targeted_regions_hierarchy: list[TargetedRegion] | None = Field(
         default=None,
         description="Regions and countries known to be targeted by the campaign",
+        alias="targeted_regions",
     )
     top_icon_md5: list[str] | None = Field(
         default=None,
