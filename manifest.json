@@ -7217,7 +7217,7 @@
       "max_confidence_level": 50,
       "support_version": ">= 6.5.1",
       "subscription_link": "",
-      "source_code": "https://github.com/OpenCTI-Platform/connectors/tree/oob/connector_manager/external-import/urlhaus",
+      "source_code": "https://github.com/OpenCTI-Platform/connectors/tree/master/external-import/urlhaus",
       "manager_supported": true,
       "container_version": "rolling",
       "container_image": "opencti/connector-urlhaus",
@@ -11411,6 +11411,11 @@
           "MISP_PUBLISH_ON_UPDATE": {
             "default": false,
             "description": "Automatically publish events when updated.",
+            "type": "boolean"
+          },
+          "MISP_PUBLISH_ALERT": {
+            "default": false,
+            "description": "Send email alert notifications when publishing events.",
             "type": "boolean"
           },
           "MISP_TAG_OPENCTI": {
